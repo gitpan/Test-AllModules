@@ -1,0 +1,26 @@
+---
+abstract: 'do some tests for modules in search path'
+author:
+  - 'Dai Okabayashi <bayashi@cpan.org>'
+configure_requires:
+  Module::Build: 0.36
+generated_by: 'Module::Build version 0.3607'
+license: perl
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: Test-AllModules
+provides:
+  Test::AllModules:
+    file: lib/Test/AllModules.pm
+    version: 0.02
+requires:
+  Exporter: 0
+  List::MoreUtils: 0
+  Module::Pluggable::Object: 0
+  Test::More: 0.88
+  perl: v5.8.1
+resources:
+  license: http://dev.perl.org/licenses/
+  repository: http://github.com/bayashi/Test-AllModules
+version: 0.02
