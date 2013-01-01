@@ -13,7 +13,7 @@ name: Test-AllModules
 provides:
   Test::AllModules:
     file: lib/Test/AllModules.pm
-    version: 0.04
+    version: 0.05
 requires:
   Exporter: 0
   List::MoreUtils: 0
@@ -23,4 +23,4 @@ requires:
 resources:
   license: http://dev.perl.org/licenses/
   repository: http://github.com/bayashi/Test-AllModules
-version: 0.04
+version: 0.05
