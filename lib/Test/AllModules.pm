@@ -2,10 +2,9 @@ package Test::AllModules;
 use strict;
 use warnings;
 use Module::Pluggable::Object;
-use List::MoreUtils qw(any);
 use Test::More ();
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 use Exporter;
 our @ISA    = qw/Exporter/;
@@ -36,30 +35,52 @@ sub all_ok {
 
     Test::More::plan('no_plan');
     my @exceptions = @{ $param{except} || [] };
-    my @lib        = @{ $param{lib} || ['lib'] };
 
     for my $class (
         grep { !_is_excluded( $_, @exceptions ) }
-        sort do {
-            local @INC = @lib;
-            my $finder = Module::Pluggable::Object->new(
-                search_path => $search_path );
-            ( $search_path, $finder->plugins );
-        }
-    )
-    {
+            _classes($search_path, \%param) ) {
+
         for my $check (@checks) {
             Test::More::ok(
                 $check->{test}->($class),
                 "$check->{name}$class",
             );
         }
+
     }
+}
+
+sub _classes {
+    my ($search_path, $param) = @_;
+
+    local @INC = @{ $param->{lib} || ['lib'] };
+    my $finder = Module::Pluggable::Object->new(
+        search_path => $search_path,
+    );
+    my @classes = ( $search_path, $finder->plugins );
+
+    return $param->{shuffle} ? _shuffle(@classes) : sort(@classes);
+}
+
+# This '_shuffle' method copied
+# from http://blog.nomadscafe.jp/archives/000246.html
+sub _shuffle {
+    map { $_[$_->[0]] } sort { $a->[1] <=> $b->[1] } map { [$_ , rand(1)] } 0..$#_;
+}
+
+# This '_any' method copied from List::MoreUtils.
+sub _any (&@) { ## no critic
+    my $f = shift;
+
+    foreach ( @_ ) {
+        return 1 if $f->();
+    }
+    return;
 }
 
 sub _is_excluded {
     my ( $module, @exceptions ) = @_;
-    any { $module eq $_ || $module =~ /$_/ } @exceptions;
+    _any { $module eq $_ || $module =~ /$_/ } @exceptions;
 }
 
 1;

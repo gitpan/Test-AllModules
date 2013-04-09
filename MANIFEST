@@ -11,6 +11,7 @@ t/02_checks.t
 t/03_except.t
 t/04_lib.t
 t/05_only_one_check.t
+t/06_classes.t
 t/lib/MyApp.pm
 t/lib/MyApp/RegExp/Test.pm
 t/lib/MyApp/Test.pm
@@ -19,3 +20,4 @@ t/lib2/MyApp2/Test.pm
 xt/01_perlcritic.t
 xt/02_pod-coverage.t
 xt/03_pod.t
+META.json
