@@ -4,24 +4,38 @@ use warnings;
 use Module::Pluggable::Object;
 use Test::More ();
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
-use Exporter;
-our @ISA    = qw/Exporter/;
-our @EXPORT = qw/all_ok/;
+sub import {
+    my $class = shift;
+
+    my $caller = caller;
+
+    no strict 'refs'; ## no critic
+    for my $func (qw/ all_ok /) {
+        *{"${caller}::$func"} = \&{"Test::AllModules::$func"};
+    }
+}
 
 sub all_ok {
     my %param = @_;
 
-    my $search_path = $param{search_path};
+    my $search_path = delete $param{search_path};
+    my $check       = delete $param{check};
+    my $checks      = delete $param{checks};
+    my $except      = delete $param{except};
+    my $lib         = delete $param{lib};
+    my $fork        = delete $param{fork};
+    my $shuffle     = delete $param{shuffle};
+
     my @checks;
-    if (ref($param{check}) eq 'CODE') {
-        push @checks, +{ test => $param{check}, name => '', };
+    if (ref($check) eq 'CODE') {
+        push @checks, +{ test => $check, name => '', };
     }
     else {
-        for my $check ( $param{check}, @{ $param{checks} || [] } ) {
-            my ($name) = keys %{$check || +{}};
-            my $test   = $name ? $check->{$name} : undef;
+        for my $code ( $check, @{ $checks || [] } ) {
+            my ($name) = keys %{$code || +{}};
+            my $test   = $name ? $code->{$name} : undef;
             if (ref($test) eq 'CODE') {
                 push @checks, +{ test => $test, name => "$name: ", };
             }
@@ -34,29 +48,32 @@ sub all_ok {
     }
 
     Test::More::plan('no_plan');
-    my @exceptions = @{ $param{except} || [] };
+    my @exceptions = @{ $except || [] };
 
-    if ($param{fork}) {
+    if ($fork) {
         require Test::SharedFork;
         Test::More::note("Tests run under forking. Parent PID=$$");
     }
 
+    my $count = 0;
     for my $class (
         grep { !_is_excluded( $_, @exceptions ) }
-            _classes($search_path, \%param) ) {
-
-        for my $check (@checks) {
-            _exec_test($check, $class, $param{fork});
+            _classes($search_path, $lib, $shuffle) ) {
+        $count++;
+        for my $code (@checks) {
+            _exec_test($code, $class, $count, $fork);
         }
 
     }
+
+    Test::More::note( "total: $count module". ($count > 1 ? 's' : '') );
 }
 
 sub _exec_test {
-    my ($check, $class, $fork) = @_;
+    my ($code, $class, $count, $fork) = @_;
 
     unless ($fork) {
-        _ok($check, $class);
+        _ok($code, $class, $count);
         return;
     }
 
@@ -67,30 +84,30 @@ sub _exec_test {
         waitpid($pid, 0);
     }
     else {
-        _ok($check, $class, $fork);
+        _ok($code, $class, $count, $fork);
         exit;
     }
 }
 
 sub _ok {
-    my ($check, $class, $fork) = @_;
+    my ($code, $class, $count, $fork) = @_;
 
     Test::More::ok(
-        $check->{test}->($class),
-        "$check->{name}$class". ( $fork && $fork == 2 ? "(PID=$$)" : '' )
+        $code->{test}->($class, $count),
+        "$code->{name}$class". ( $fork && $fork == 2 ? "(PID=$$)" : '' )
     );
 }
 
 sub _classes {
-    my ($search_path, $param) = @_;
+    my ($search_path, $lib, $shuffle) = @_;
 
-    local @INC = @{ $param->{lib} || ['lib'] };
+    local @INC = @{ $lib || ['lib'] };
     my $finder = Module::Pluggable::Object->new(
         search_path => $search_path,
     );
     my @classes = ( $search_path, $finder->plugins );
 
-    return $param->{shuffle} ? _shuffle(@classes) : sort(@classes);
+    return $shuffle ? _shuffle(@classes) : sort(@classes);
 }
 
 # This '_shuffle' method copied
@@ -125,7 +142,6 @@ Test::AllModules - do some tests for modules in search path
 
 =head1 SYNOPSIS
 
-    # simplest
     use Test::AllModules;
 
     BEGIN {
@@ -138,7 +154,58 @@ Test::AllModules - do some tests for modules in search path
         );
     }
 
-    # if you need the name of test
+
+=head1 DESCRIPTION
+
+Test::AllModules is do some tests for modules in search path.
+
+
+=head1 EXPORTED FUNCTIONS
+
+=head2 all_ok(%args)
+
+do C<check(s)> code as C<Test::More::ok()> for every module in search path.
+
+=over 4
+
+=item * B<search_path> => 'Class'
+
+A namespace to look in. see: L<Module::Pluggable::Object>
+
+=item * B<check> => \&test_code_ref or hash( TEST_NAME => \&test_code_ref )
+=item * B<checks> => \@array: include hash( TEST_NAME => \&test_code_ref )
+
+The code to execute each module. The code receives C<$class> and C<$count>. The result from the code is passed to C<Test::More::ok()>.
+
+=item * B<except> => \@array: include scalar or qr//
+
+This parameter is optional.
+
+=item * B<lib> => \@array
+
+Additional library paths.
+
+This parameter is optional.
+
+=item * B<fork> => 1:fork, 2:fork and show PID
+
+If this option was set a value(1 or 2) then each check-code executes after forking.
+
+This parameter is optional.
+
+=item * B<shuffle> => boolean
+
+If this option was set the true value then modules will be sorted in random order.
+
+This parameter is optional.
+
+=back
+
+
+=head1 EXAMPLES
+
+if you need the name of test
+
     use Test::AllModules;
 
     BEGIN {
@@ -153,12 +220,29 @@ Test::AllModules - do some tests for modules in search path
         );
     }
 
-    # more tests, all options
+actually the count is also passed
+
     use Test::AllModules;
 
     BEGIN {
         all_ok(
             search_path => 'MyApp',
+            check => sub {
+                my ($class, $count) = @_;
+                eval "use $class;1;";
+            },
+        );
+    }
+
+more tests, all options
+
+    use Test::AllModules;
+
+    BEGIN {
+        all_ok(
+
+            search_path => 'MyApp',
+
             checks => [
                 +{
                     'use_ok' => sub {
@@ -168,7 +252,6 @@ Test::AllModules - do some tests for modules in search path
                 },
             ],
 
-            # `except` and `lib` are optional.
             except => [
                 'MyApp::Role',
                 qr/MyApp::Exclude::.*/,
@@ -179,23 +262,11 @@ Test::AllModules - do some tests for modules in search path
                 't/lib',
             ],
 
-            shuffle => 1, # shuffle a use list: optional
+            shuffle => 1,
 
-            fork => 1,    # use each module after forking: optional
+            fork => 1,
         );
     }
-
-
-=head1 DESCRIPTION
-
-Test::AllModules is do some tests for modules in search path.
-
-
-=head1 EXPORTED FUNCTIONS
-
-=head2 all_ok
-
-do C<check(s)> code as ok() for every modules in search path.
 
 
 =head1 REPOSITORY

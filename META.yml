@@ -17,9 +17,8 @@ name: Test-AllModules
 provides:
   Test::AllModules:
     file: lib/Test/AllModules.pm
-    version: 0.07
+    version: 0.08
 requires:
-  Exporter: 0
   Module::Pluggable::Object: 0
   Test::More: 0.88
   Test::SharedFork: 0
@@ -27,4 +26,4 @@ requires:
 resources:
   license: http://dev.perl.org/licenses/
   repository: http://github.com/bayashi/Test-AllModules
-version: 0.07
+version: 0.08

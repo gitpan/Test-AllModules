@@ -15,6 +15,7 @@ t/05_only_one_check.t
 t/06_classes.t
 t/07_fork.t
 t/08_fork_pid.t
+t/09_count.t
 t/lib/MyApp.pm
 t/lib/MyApp/RegExp/Test.pm
 t/lib/MyApp/Test.pm
