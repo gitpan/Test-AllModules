@@ -16,6 +16,9 @@ t/06_classes.t
 t/07_fork.t
 t/08_fork_pid.t
 t/09_count.t
+t/10_use_ok.t
+t/11_require_ok.t
+t/12_full_checks.t
 t/lib/MyApp.pm
 t/lib/MyApp/RegExp/Test.pm
 t/lib/MyApp/Test.pm
