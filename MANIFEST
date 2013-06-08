@@ -19,11 +19,15 @@ t/09_count.t
 t/10_use_ok.t
 t/11_require_ok.t
 t/12_full_checks.t
+t/13_version.t
+t/14_no_version.t
+t/15_fail.t
 t/lib/MyApp.pm
 t/lib/MyApp/RegExp/Test.pm
 t/lib/MyApp/Test.pm
 t/lib2/MyApp2.pm
 t/lib2/MyApp2/Test.pm
+t/lib3/MyApp3.pm
 xt/01_perlcritic.t
 xt/02_pod-coverage.t
 xt/03_pod.t

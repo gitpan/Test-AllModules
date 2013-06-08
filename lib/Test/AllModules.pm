@@ -4,13 +4,17 @@ use warnings;
 use Module::Pluggable::Object;
 use Test::More ();
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 my $USE_OK = sub {
-    eval "use $_[0];1;"; ## no critic
+    eval "use $_[0];"; ## no critic
+    Test::More::note($@) if $@;
+    return 1;
 };
 my $REQUIRE_OK = sub {
-    eval "require $_[0];1;"; ## no critic
+    eval "require $_[0];"; ## no critic
+    Test::More::note($@) if $@;
+    return 1;
 };
 
 sub import {
@@ -36,6 +40,7 @@ sub all_ok {
     my $lib         = delete $param{lib};
     my $fork        = delete $param{fork};
     my $shuffle     = delete $param{shuffle};
+    my $show_version = delete $param{show_version};
 
     if ( _is_win() && $fork ) {
         Test::More::plan skip_all => 'The "fork" option is not supported in Windows';
@@ -78,7 +83,7 @@ sub all_ok {
             _classes($search_path, $lib, $shuffle) ) {
         $count++;
         for my $code (@checks) {
-            _exec_test($code, $class, $count, $fork);
+            _exec_test($code, $class, $count, $fork, $show_version);
         }
 
     }
@@ -87,10 +92,10 @@ sub all_ok {
 }
 
 sub _exec_test {
-    my ($code, $class, $count, $fork) = @_;
+    my ($code, $class, $count, $fork, $show_version) = @_;
 
     unless ($fork) {
-        _ok($code, $class, $count);
+        _ok($code, $class, $count, undef, $show_version);
         return;
     }
 
@@ -101,18 +106,39 @@ sub _exec_test {
         waitpid($pid, 0);
     }
     else {
-        _ok($code, $class, $count, $fork);
+        _ok($code, $class, $count, $fork, $show_version);
         exit;
     }
 }
 
 sub _ok {
-    my ($code, $class, $count, $fork) = @_;
+    my ($code, $class, $count, $fork, $show_version) = @_;
 
-    Test::More::ok(
-        $code->{test}->($class, $count),
-        "$code->{name}$class". ( $fork && $fork == 2 ? "(PID=$$)" : '' )
-    );
+    my $test_name = "$code->{name}$class". ($fork && $fork == 2 ? "(PID=$$)" : '');
+
+    my $ret;
+    eval {
+        $ret = $code->{test}->($class, $count);
+    };
+
+    if (my $e = $@) {
+        Test::More::fail($test_name);
+        Test::More::note("The Test failed: $e");
+        return;
+    }
+
+    if ( Test::More::ok($ret, $test_name) ) {
+        if ($show_version) {
+            no strict 'refs'; ## no critic
+            if ( my $version = ${"$class\::VERSION"} ) {
+                Test::More::note("$class $version");
+            }
+        }
+    }
+    else {
+        my $got = defined $ret ? $ret : '';
+        Test::More::note("The Test did NOT return true value. got: $got");
+    }
 }
 
 sub _classes {
@@ -239,11 +265,17 @@ If this option was set a value(1 or 2) then each check-code executes after forki
 
 This parameter is optional.
 
-NOTE that this option is not supported in Windows system.
+NOTE that this option is NOT supported in Windows system.
 
 =item * B<shuffle> => boolean
 
 If this option was set the true value then modules will be sorted in random order.
+
+This parameter is optional.
+
+=item * B<show_version> => boolean
+
+If this option was set the true value then the version of module will be shown.
 
 This parameter is optional.
 
