@@ -4,16 +4,22 @@ use warnings;
 use Module::Pluggable::Object;
 use Test::More ();
 
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 my $USE_OK = sub {
     eval "use $_[0];"; ## no critic
-    Test::More::note($@) if $@;
+    if (my $e = $@) {
+        Test::More::note($e);
+        return;
+    }
     return 1;
 };
 my $REQUIRE_OK = sub {
     eval "require $_[0];"; ## no critic
-    Test::More::note($@) if $@;
+    if (my $e = $@) {
+        Test::More::note($e);
+        return;
+    }
     return 1;
 };
 
